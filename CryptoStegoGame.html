@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ultimate Encryption & Steganography Game</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #111;
+      color: #0f0;
+      padding: 20px;
+    }
+    textarea, input, select {
+      width: 100%;
+      margin: 10px 0;
+      background: #000;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 8px;
+    }
+    button {
+      background: #0f0;
+      color: #000;
+      padding: 10px;
+      font-weight: bold;
+      margin: 5px;
+      cursor: pointer;
+    }
+    canvas {
+      border: 1px solid #0f0;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧠 Ultimate Crypto & Stego Challenge</h1>
+
+  <label>Message:</label>
+  <textarea id="message" rows="3"></textarea>
+  <button onclick="generateRandomMessage()">🎲 Generate Random Message</button>
+
+  <label>Choose Encryption Method:</label>
+  <select id="method">
+    <option value="caesar">Caesar</option>
+    <option value="vigenere">Vigenère</option>
+    <option value="xor">XOR</option>
+  </select>
+
+  <label>Key (number for Caesar/XOR, word for Vigenère):</label>
+  <input id="key" />
+
+  <button onclick="encrypt()">Encrypt</button>
+  <button onclick="hideInImage()">Hide in Image</button>
+  <button onclick="revealFromImage()">Reveal Message</button>
+
+  <h2>Output:</h2>
+  <textarea id="result" rows="3" readonly></textarea>
+
+  <h2>Canvas:</h2>
+  <canvas id="canvas" width="300" height="100"></canvas>
+
+  <h2>🔐 Challenge Mode</h2>
+  <button onclick="startChallenge()">Start Decryption Challenge</button>
+  <div id="challenge" style="display:none;">
+    <p><b>Encrypted Message:</b></p>
+    <textarea id="challengeText" rows="3" readonly></textarea>
+    <label>Guess the key:</label>
+    <input id="guessKey" />
+    <button onclick="guessKey()">Try Key</button>
+    <p>Time left: <span id="timer">60</span>s</p>
+    <p>Attempts left: <span id="attempts">3</span></p>
+  </div>
+
+  <h3>🎯 Score: <span id="score">0</span></h3>
+
+  <script>
+    let score = 0;
+    let encryptedGlobal = '';
+    let methodGlobal = '';
+    let keyGlobal = '';
+    let challengeInterval;
+    let timeLeft = 60;
+    let attempts = 3;
+
+    const wordBank = [
+      "cypher", "quantum", "matrix", "encrypt", "decode", "agent",
+      "network", "zero", "byte", "delta", "code", "signal", "omega",
+      "alpha", "shadow", "hacker", "stealth", "intel", "drone", "pulse"
+    ];
+
+    function generateRandomMessage() {
+      let message = [];
+      const wordCount = Math.floor(Math.random() * 4) + 3;
+      for (let i = 0; i < wordCount; i++) {
+        const word = wordBank[Math.floor(Math.random() * wordBank.length)];
+        message.push(word);
+      }
+      const fullMessage = message.join(' ');
+      document.getElementById("message").value = fullMessage;
+      alert("Random message generated!");
+    }
+
+    function encrypt() {
+      const message = document.getElementById("message").value;
+      const method = document.getElementById("method").value;
+      const key = document.getElementById("key").value;
+      let encrypted = '';
+
+      if (method === 'caesar') {
+        const shift = parseInt(key) || 0;
+        encrypted = message.split('').map(c => String.fromCharCode(c.charCodeAt(0) + shift)).join('');
+      } else if (method === 'vigenere') {
+        encrypted = '';
+        for (let i = 0; i < message.length; i++) {
+          let shift = key.charCodeAt(i % key.length) || 0;
+          encrypted += String.fromCharCode(message.charCodeAt(i) + shift);
+        }
+      } else if (method === 'xor') {
+        const numKey = parseInt(key) || 0;
+        encrypted = message.split('').map(c => String.fromCharCode(c.charCodeAt(0) ^ numKey)).join('');
+      }
+
+      encryptedGlobal = encrypted;
+      methodGlobal = method;
+      keyGlobal = key;
+      document.getElementById("result").value = encrypted;
+      alert("Encrypted! +10 points.");
+      score += 10;
+    }
+
+    function hideInImage() {
+      const text = encryptedGlobal;
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < text.length && i * 4 < data.length; i++) {
+        data[i * 4] = text.charCodeAt(i);
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      alert("Message hidden! +20 points.");
+      score += 20;
+    }
+
+    function revealFromImage() {
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      let message = "";
+      for (let i = 0; i < data.length; i += 4) {
+        const charCode = data[i];
+        if (charCode === 0) break;
+        message += String.fromCharCode(charCode);
+      }
+
+      document.getElementById("result").value = message;
+      alert("Message revealed! +30 points.");
+      score += 30;
+    }
+
+    function startChallenge() {
+      if (!encryptedGlobal || !keyGlobal) {
+        alert("Encrypt something first.");
+        return;
+      }
+      document.getElementById("challenge").style.display = "block";
+      document.getElementById("challengeText").value = encryptedGlobal;
+      timeLeft = 60;
+      attempts = 3;
+      document.getElementById("timer").innerText = timeLeft;
+      document.getElementById("attempts").innerText = attempts;
+
+      challengeInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timer").innerText = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(challengeInterval);
+          alert("⏰ Time's up! Challenge failed.");
+        }
+      }, 1000);
+    }
+
+    function guessKey() {
+      const guess = document.getElementById("guessKey").value;
+      let decrypted = '';
+      const encrypted = encryptedGlobal;
+
+      if (methodGlobal === 'caesar') {
+        const shift = parseInt(guess) || 0;
+        decrypted = encrypted.split('').map(c => String.fromCharCode(c.charCodeAt(0) - shift)).join('');
+      } else if (methodGlobal === 'vigenere') {
+        decrypted = '';
+        for (let i = 0; i < encrypted.length; i++) {
+          let shift = guess.charCodeAt(i % guess.length) || 0;
+          decrypted += String.fromCharCode(encrypted.charCodeAt(i) - shift);
+        }
+      } else if (methodGlobal === 'xor') {
+        const numKey = parseInt(guess) || 0;
+        decrypted = encrypted.split('').map(c => String.fromCharCode(c.charCodeAt(0) ^ numKey)).join('');
+      }
+
+      if (guess === keyGlobal) {
+        alert("🎉 Correct key! You win +50 points!");
+        document.getElementById("result").value = decrypted;
+        score += 50;
+        clearInterval(challengeInterval);
+      } else {
+        attempts--;
+        document.getElementById("attempts").innerText = attempts;
+        alert("Wrong key!");
+        if (attempts <= 0) {
+          alert("❌ No attempts left. Challenge failed.");
+          clearInterval(challengeInterval);
+        }
+      }
+    }
+
+    setInterval(() => {
+      document.getElementById("score").innerText = score;
+    }, 500);
+  </script>
+</body>
+</html>
